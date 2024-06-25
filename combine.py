@@ -1,6 +1,6 @@
 import streamlit as st
 from docx import Document as DocxDocument
-from pdfminer.high_level import extract_text
+from pdfminer.high_level import extract_text as extract_pdf_text
 import os
 import base64
 from langchain.chat_models import ChatOpenAI
@@ -37,14 +37,10 @@ def read_docx(file_path):
 
     return text_elements, table_elements, image_elements
 
-# Function to read pdf file and process content
+# Function to read PDF file and process content
 def read_pdf(file_path):
-    text = extract_text(file_path)
-    # For tables and images extraction, you might need additional libraries like pdfplumber or PyMuPDF
-    # Extracting tables and images from PDF is more complex and depends on the PDF structure and content
-    table_elements = []  # Placeholder for tables (needs implementation)
-    image_elements = []  # Placeholder for images (needs implementation)
-    return [text], table_elements, image_elements  # Returning text as a list for consistency with read_docx
+    text = extract_pdf_text(file_path)
+    return text.split('\n'), [], []
 
 # Function to encode image to base64
 def encode_image(image_blob):
@@ -74,17 +70,9 @@ def summarize_image(encoded_image, _chain_gpt_4_vision):
 
 # Function to get user input for file path using file uploader
 def get_file_path():
-    uploaded_file = st.file_uploader("Upload a file (DOCX or PDF)", type=["docx", "pdf"], key="file-uploader")
+    uploaded_file = st.file_uploader("Upload a DOCX or PDF file", type=["docx", "pdf"], key="file-uploader")
     if uploaded_file is not None:
-        file_type = uploaded_file.type
-        if file_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':  # Check if DOCX
-            file_path = "temp.docx"
-        elif file_type == 'application/pdf':  # Check if PDF
-            file_path = "temp.pdf"
-        else:
-            st.error("Unsupported file type. Please upload a DOCX or PDF file.")
-            return None
-
+        file_path = f"temp.{uploaded_file.name.split('.')[-1]}"
         with open(file_path, "wb") as f:
             f.write(uploaded_file.getvalue())
         return file_path
@@ -215,17 +203,14 @@ def main():
             else:
                 st.sidebar.write("No image summaries available.")
         
-        # Read the document file
-        file_path = get_file_path()
-        if file_path is not None:
+        # Read the docx or pdf file
+        docx_pdf_path = get_file_path()  # get user input for file path
+        if docx_pdf_path is not None:
             with st.spinner("Processing file..."):
-                if file_path.endswith('.docx'):
-                    text_elements, table_elements, image_elements = read_docx(file_path)
-                elif file_path.endswith('.pdf'):
-                    text_elements, table_elements, image_elements = read_pdf(file_path)
+                if docx_pdf_path.endswith(".docx"):
+                    text_elements, table_elements, image_elements = read_docx(docx_pdf_path)
                 else:
-                    st.error("Unsupported file type. Please upload a DOCX or PDF file.")
-                    return
+                    text_elements, table_elements, image_elements = read_pdf(docx_pdf_path)
 
                 # Initialize summarizers
                 chain_gpt_4_vision = ChatOpenAI(model="gpt-4-vision-preview", max_tokens=1024)
