@@ -1,0 +1,9 @@
+streamlit
+docx
+pdfminer.six
+langchain
+scikit-learn
+sentence-transformers
+openai
+Pillow
+
